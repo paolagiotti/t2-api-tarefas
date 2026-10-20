@@ -1,34 +1,35 @@
-"""Ponto de entrada. Monta a aplicacao juntando as pecas do core."""
+import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 
-from app.core.config import get_settings
-from app.core.exceptions import register_exception_handlers
-from app.core.logging import RequestLoggingMiddleware, setup_logging
-from app.modules.tasks.router import router as tasks_router
-from app.modules.users.router import router as users_router
+from app.api.middleware import register_request_logging
+from app.api.routers import health
+from app.config import Settings, get_settings
+from app.logging_config import configure_logging
 
-settings = get_settings()
-setup_logging(settings.debug)
+logger = logging.getLogger(__name__)
 
 
-def create_app() -> FastAPI:
-    """Factory: permite criar instancias isoladas nos testes."""
+def create_app(settings: Settings | None = None) -> FastAPI:
+    """Monta a aplicação. É o ponto onde as camadas são conectadas (composition root)."""
+    settings = settings or get_settings()
+    configure_logging(settings.log_level)
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        logger.info("API iniciada (ambiente: %s)", settings.environment)
+        yield
+        logger.info("API encerrada")
+
     app = FastAPI(
-        title=settings.app_name,
-        version="0.1.0",
-        description="Trabalho T2 - Engenharia de Software: Arquitetura e Padroes",
+        title="API de Gestão de Tarefas Colaborativas",
+        version="1.0.0",
+        lifespan=lifespan,
     )
-    app.add_middleware(RequestLoggingMiddleware)
-    register_exception_handlers(app)
+    app.state.settings = settings
 
-    app.include_router(users_router)
-    app.include_router(tasks_router)
-
-    @app.get("/health", tags=["infra"])
-    def health():
-        return {"status": "ok"}
-
+    register_request_logging(app)
+    app.include_router(health.router)
     return app
-
-
-app = create_app()
