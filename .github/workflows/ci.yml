@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  testes:
+    name: Lint e testes
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: tarefas
+          POSTGRES_USER: tarefas
+          POSTGRES_PASSWORD: tarefas
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U tarefas"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql+psycopg://tarefas:tarefas@localhost:5432/tarefas
+      JWT_SECRET: segredo-usado-somente-no-pipeline-de-ci
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Instalar dependências
+        run: pip install -r requirements-dev.txt
+
+      - name: Lint
+        run: |
+          ruff check .
+          ruff format --check .
+
+      - name: Testes com cobertura (SQLite)
+        run: pytest --cov --cov-report=term-missing
+
+      - name: Testes no PostgreSQL
+        run: pytest -q
+        env:
+          TEST_DATABASE_URL: ${{ env.DATABASE_URL }}
+
+      - name: Migrações no PostgreSQL
+        run: |
+          alembic upgrade head
+          alembic check
+
+  docker:
+    name: Docker Compose (smoke test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Subir os serviços
+        run: docker compose up --build --detach --wait --wait-timeout 180
+
+      - name: Verificar a API
+        run: curl --fail --silent --show-error http://localhost:8000/health
+
+      - name: Logs da API
+        if: failure()
+        run: docker compose logs api
+
+      - name: Derrubar os serviços
+        if: always()
+        run: docker compose down --volumes
