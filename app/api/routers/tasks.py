@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Annotated
 from uuid import UUID
 
@@ -15,6 +16,7 @@ from app.api.dependencies import (
 from app.api.schemas.errors import error_responses
 from app.api.schemas.tasks import TaskCreateRequest, TaskResponse, TaskUpdateRequest
 from app.application.dto import TaskFilters
+from app.domain.entities import TaskPriority, TaskStatus
 
 router = APIRouter(
     prefix="/tasks",
@@ -37,17 +39,39 @@ def create_task(
 
 
 @router.get(
-    "", summary="Listar tarefas", description="Ordenadas da mais recente para a mais antiga."
+    "",
+    summary="Listar e filtrar tarefas",
+    description=(
+        "Todos os filtros são opcionais e combináveis, por exemplo "
+        "`/tasks?status=done&priority=high&dueBefore=2026-12-01`. "
+        "O resultado é ordenado da tarefa mais recente para a mais antiga."
+    ),
 )
 def list_tasks(
     use_case: ListTasksDep,
     assigned_to: Annotated[
         UUID | None, Query(alias="assignedTo", description="Somente tarefas deste responsável")
     ] = None,
+    task_status: Annotated[TaskStatus | None, Query(alias="status")] = None,
+    priority: Annotated[TaskPriority | None, Query()] = None,
+    due_before: Annotated[
+        date | None, Query(alias="dueBefore", description="Prazo anterior a esta data")
+    ] = None,
+    due_after: Annotated[
+        date | None, Query(alias="dueAfter", description="Prazo posterior a esta data")
+    ] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> list[TaskResponse]:
-    filters = TaskFilters(assigned_to=assigned_to, limit=limit, offset=offset)
+    filters = TaskFilters(
+        assigned_to=assigned_to,
+        status=task_status,
+        priority=priority,
+        due_before=due_before,
+        due_after=due_after,
+        limit=limit,
+        offset=offset,
+    )
     return [TaskResponse.model_validate(task) for task in use_case.execute(filters)]
 
 

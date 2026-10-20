@@ -53,7 +53,13 @@ class TaskChanges:
 
 @dataclass(frozen=True)
 class TaskFilters:
+    """Filtros combináveis da listagem de tarefas (campos None são ignorados)."""
+
     assigned_to: UUID | None = None
+    status: TaskStatus | None = None
+    priority: TaskPriority | None = None
+    due_before: date | None = None
+    due_after: date | None = None
     limit: int = 50
     offset: int = 0
 

@@ -32,6 +32,14 @@ class SqlAlchemyTaskRepository(TaskRepository):
         query = select(TaskModel)
         if filters.assigned_to is not None:
             query = query.where(TaskModel.assigned_to == filters.assigned_to)
+        if filters.status is not None:
+            query = query.where(TaskModel.status == filters.status.value)
+        if filters.priority is not None:
+            query = query.where(TaskModel.priority == filters.priority.value)
+        if filters.due_before is not None:
+            query = query.where(TaskModel.due_date < filters.due_before)
+        if filters.due_after is not None:
+            query = query.where(TaskModel.due_date > filters.due_after)
 
         query = (
             query.order_by(TaskModel.created_at.desc(), TaskModel.id)

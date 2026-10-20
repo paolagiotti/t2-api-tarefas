@@ -64,7 +64,16 @@ class InMemoryTaskRepository(TaskRepository):
 
 
 def _matches(task: Task, filters: TaskFilters) -> bool:
-    return filters.assigned_to is None or task.assigned_to == filters.assigned_to
+    checks = [
+        filters.assigned_to is None or task.assigned_to == filters.assigned_to,
+        filters.status is None or task.status == filters.status,
+        filters.priority is None or task.priority == filters.priority,
+        filters.due_before is None
+        or (task.due_date is not None and task.due_date < filters.due_before),
+        filters.due_after is None
+        or (task.due_date is not None and task.due_date > filters.due_after),
+    ]
+    return all(checks)
 
 
 class InMemoryRevokedTokenRepository(RevokedTokenRepository):
