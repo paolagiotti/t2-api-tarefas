@@ -22,11 +22,16 @@ services:
       # Valor apenas para desenvolvimento local. Em produção, defina JWT_SECRET no ambiente.
       JWT_SECRET: ${JWT_SECRET:-segredo-de-desenvolvimento-troque-em-producao}
       LOG_LEVEL: INFO
+      NOTIFICATION_BACKEND: smtp
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
     ports:
       - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
+      mailpit:
+        condition: service_started
     healthcheck:
       test:
         - CMD
@@ -37,6 +42,14 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+
+  # Servidor SMTP de desenvolvimento: captura os e-mails enviados pela API.
+  # Caixa de entrada em http://localhost:8025
+  mailpit:
+    image: axllent/mailpit:v1.31
+    ports:
+      - "8025:8025"
+      - "1025:1025"
 
 volumes:
   pgdata:

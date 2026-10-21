@@ -12,7 +12,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
 from app.application.dto import Principal
-from app.application.ports import PasswordHasher, TokenService, UnitOfWork
+from app.application.ports import PasswordHasher, TaskNotifier, TokenService, UnitOfWork
 from app.application.use_cases.auth import AuthenticateToken, Login, Logout
 from app.application.use_cases.tasks import CreateTask, DeleteTask, GetTask, ListTasks, UpdateTask
 from app.application.use_cases.users import CreateUser, DeleteUser, GetUser, UpdateUser
@@ -46,9 +46,14 @@ def get_token_service(request: Request) -> TokenService:
     return request.app.state.token_service
 
 
+def get_task_notifier(request: Request) -> TaskNotifier:
+    return request.app.state.task_notifier
+
+
 UnitOfWorkDep = Annotated[UnitOfWork, Depends(get_unit_of_work)]
 PasswordHasherDep = Annotated[PasswordHasher, Depends(get_password_hasher)]
 TokenServiceDep = Annotated[TokenService, Depends(get_token_service)]
+TaskNotifierDep = Annotated[TaskNotifier, Depends(get_task_notifier)]
 
 
 # Autenticação
@@ -115,8 +120,8 @@ DeleteUserDep = Annotated[DeleteUser, Depends(_delete_user)]
 # Tarefas
 
 
-def _create_task(uow: UnitOfWorkDep) -> CreateTask:
-    return CreateTask(uow)
+def _create_task(uow: UnitOfWorkDep, notifier: TaskNotifierDep) -> CreateTask:
+    return CreateTask(uow, notifier)
 
 
 def _get_task(uow: UnitOfWorkDep) -> GetTask:
@@ -127,8 +132,8 @@ def _list_tasks(uow: UnitOfWorkDep) -> ListTasks:
     return ListTasks(uow)
 
 
-def _update_task(uow: UnitOfWorkDep) -> UpdateTask:
-    return UpdateTask(uow)
+def _update_task(uow: UnitOfWorkDep, notifier: TaskNotifierDep) -> UpdateTask:
+    return UpdateTask(uow, notifier)
 
 
 def _delete_task(uow: UnitOfWorkDep) -> DeleteTask:

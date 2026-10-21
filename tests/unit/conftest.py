@@ -4,7 +4,12 @@ import pytest
 
 from app.application.use_cases.tasks import CreateTask, UpdateTask
 from app.domain.entities import User
-from tests.fakes import FakePasswordHasher, FakeTokenService, InMemoryUnitOfWork
+from tests.fakes import (
+    FakePasswordHasher,
+    FakeTokenService,
+    InMemoryUnitOfWork,
+    SpyTaskNotifier,
+)
 
 
 @pytest.fixture
@@ -37,10 +42,15 @@ def make_user(uow: InMemoryUnitOfWork, hasher: FakePasswordHasher) -> Callable[.
 
 
 @pytest.fixture
-def create_task(uow: InMemoryUnitOfWork) -> CreateTask:
-    return CreateTask(uow)
+def notifier() -> SpyTaskNotifier:
+    return SpyTaskNotifier()
 
 
 @pytest.fixture
-def update_task(uow: InMemoryUnitOfWork) -> UpdateTask:
-    return UpdateTask(uow)
+def create_task(uow: InMemoryUnitOfWork, notifier: SpyTaskNotifier) -> CreateTask:
+    return CreateTask(uow, notifier)
+
+
+@pytest.fixture
+def update_task(uow: InMemoryUnitOfWork, notifier: SpyTaskNotifier) -> UpdateTask:
+    return UpdateTask(uow, notifier)

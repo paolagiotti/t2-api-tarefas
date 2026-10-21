@@ -1,10 +1,11 @@
 """Portas: interfaces que a camada de aplicação exige do mundo externo.
 
-As implementações concretas (banco de dados, bcrypt, JWT) ficam em app.infrastructure,
+As implementações concretas (banco de dados, bcrypt, JWT, e-mail) ficam em app.infrastructure,
 o que mantém os casos de uso independentes de frameworks.
 """
 
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from datetime import datetime
 from uuid import UUID
 
@@ -80,3 +81,15 @@ class TokenService(ABC):
     @abstractmethod
     def decode(self, token: str) -> TokenClaims:
         """Lança AuthenticationError se o token for inválido ou estiver expirado."""
+
+
+class TaskNotifier(ABC):
+    """Avisa os envolvidos em uma tarefa sobre atribuições e alterações (e-mail, push, log...)."""
+
+    @abstractmethod
+    def task_assigned(self, task: Task, assignee: User, actor: User) -> None: ...
+
+    @abstractmethod
+    def task_updated(
+        self, task: Task, recipient: User, actor: User, changed_fields: Sequence[str]
+    ) -> None: ...

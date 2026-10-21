@@ -4,7 +4,8 @@ Os repositórios guardam cópias das entidades: assim um teste detecta quando um
 altera um objeto e esquece de chamar `save`.
 """
 
-from dataclasses import replace
+from collections.abc import Sequence
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from uuid import UUID, uuid4
 
@@ -12,6 +13,7 @@ from app.application.dto import IssuedToken, TaskFilters, TokenClaims
 from app.application.ports import (
     PasswordHasher,
     RevokedTokenRepository,
+    TaskNotifier,
     TaskRepository,
     TokenService,
     UnitOfWork,
@@ -135,3 +137,29 @@ class FakeTokenService(TokenService):
             return self._issued[token]
         except KeyError:
             raise AuthenticationError("Token inválido") from None
+
+
+@dataclass(frozen=True)
+class SentNotification:
+    kind: str
+    task_id: UUID
+    recipient_id: UUID
+    actor_id: UUID
+    changed_fields: tuple[str, ...] = ()
+
+
+class SpyTaskNotifier(TaskNotifier):
+    """Registra as notificações em vez de enviá-las."""
+
+    def __init__(self) -> None:
+        self.sent: list[SentNotification] = []
+
+    def task_assigned(self, task: Task, assignee: User, actor: User) -> None:
+        self.sent.append(SentNotification("assigned", task.id, assignee.id, actor.id))
+
+    def task_updated(
+        self, task: Task, recipient: User, actor: User, changed_fields: Sequence[str]
+    ) -> None:
+        self.sent.append(
+            SentNotification("updated", task.id, recipient.id, actor.id, tuple(changed_fields))
+        )
