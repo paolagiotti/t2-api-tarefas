@@ -1,16 +1,22 @@
 import logging
 import smtplib
+import ssl
 from datetime import date
 from typing import ClassVar
 
 import pytest
 
 from app.domain.entities import Task, TaskPriority, TaskStatus, User
-from app.infrastructure.notifications import EmailTaskNotifier, LogEmailSender, SmtpEmailSender
+from app.infrastructure.notifications import (
+    EmailSender,
+    EmailTaskNotifier,
+    LogEmailSender,
+    SmtpEmailSender,
+)
 from app.main import build_task_notifier
 
 
-class RecordingSender:
+class RecordingSender(EmailSender):
     def __init__(self, error: Exception | None = None) -> None:
         self.messages: list[tuple[str, str, str]] = []
         self._error = error
@@ -38,8 +44,9 @@ class FakeSMTP:
     def __exit__(self, *exc_info) -> None:
         return None
 
-    def starttls(self) -> None:
-        self.calls.append(("starttls",))
+    def starttls(self, context: ssl.SSLContext | None = None) -> None:
+        verified = context is not None and context.verify_mode == ssl.CERT_REQUIRED
+        self.calls.append(("starttls", verified))
 
     def login(self, username: str, password: str) -> None:
         self.calls.append(("login", username, password))
@@ -104,9 +111,14 @@ def test_update_email_lists_changed_fields(people):
     assert "Status: Concluída" in body
 
 
-def test_delivery_failure_is_logged_without_raising(people, caplog):
+@pytest.mark.parametrize(
+    "error",
+    [ConnectionRefusedError("SMTP indisponível"), ValueError("cabeçalho inválido")],
+    ids=["servidor-fora-do-ar", "mensagem-invalida"],
+)
+def test_delivery_failure_is_logged_without_raising(people, caplog, error):
     ana, bruno = people
-    sender = RecordingSender(error=ConnectionRefusedError("SMTP indisponível"))
+    sender = RecordingSender(error=error)
 
     with caplog.at_level(logging.ERROR, logger="app.infrastructure.notifications"):
         EmailTaskNotifier(sender).task_assigned(make_task(ana, bruno), bruno, ana)
@@ -130,11 +142,16 @@ def test_smtp_sender_uses_tls_and_login_when_configured(fake_smtp):
     [smtp] = fake_smtp.instances
     [message] = smtp.messages
     assert (smtp.host, smtp.port, smtp.timeout) == ("smtp.example.com", 587, 5)
-    assert smtp.calls == [("starttls",), ("login", "usuario", "senha")]
+    assert smtp.calls == [("starttls", True), ("login", "usuario", "senha")]
     assert message["To"] == "ana@example.com"
     assert message["From"] == "Tarefas <nao-responda@example.com>"
     assert message["Subject"] == "Assunto"
     assert message.get_content().strip() == "Corpo da mensagem"
+
+
+def test_smtp_login_without_tls_is_rejected():
+    with pytest.raises(ValueError, match="TLS"):
+        SmtpEmailSender("smtp.example.com", 587, "x@example.com", username="u", password="p")
 
 
 def test_log_sender_writes_the_email_to_the_log(caplog):

@@ -76,7 +76,7 @@ class UpdateTask:
         self._uow.commit()
         logger.info("Tarefa %s alterada por %s: %s", task.id, actor.id, ", ".join(changed))
 
-        self._notify(task, actor, changed, new_assignee)
+        self._notify(task, actor, changed, new_assignee, previous_assignee=before.assigned_to)
         return task
 
     def _apply(self, task: Task, changes: TaskChanges) -> User | None:
@@ -100,16 +100,22 @@ class UpdateTask:
         return new_assignee
 
     def _notify(
-        self, task: Task, actor: User, changed: list[str], new_assignee: User | None
+        self,
+        task: Task,
+        actor: User,
+        changed: list[str],
+        new_assignee: User | None,
+        previous_assignee: UUID | None,
     ) -> None:
-        """O novo responsável recebe o aviso de atribuição; criador e responsável recebem o
-        aviso de alteração. Quem fez a alteração não é notificado."""
+        """O novo responsável recebe o aviso de atribuição. Criador, responsável e, quando a
+        tarefa troca de mãos, o responsável anterior recebem o aviso de alteração. Quem fez a
+        alteração não é notificado."""
         notified = {actor.id}
         if new_assignee is not None and new_assignee.id not in notified:
             self._notifier.task_assigned(task, new_assignee, actor)
             notified.add(new_assignee.id)
 
-        for user_id in (task.created_by, task.assigned_to):
+        for user_id in (task.created_by, task.assigned_to, previous_assignee):
             if user_id is None or user_id in notified:
                 continue
             notified.add(user_id)

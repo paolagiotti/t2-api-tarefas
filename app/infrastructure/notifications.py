@@ -6,9 +6,10 @@ delegado a um `EmailSender`: SMTP de verdade ou apenas um registro no log.
 
 import logging
 import smtplib
+import ssl
+from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from email.message import EmailMessage
-from typing import Protocol
 
 from app.application.ports import TaskNotifier
 from app.domain.entities import Task, TaskPriority, TaskStatus, User
@@ -35,11 +36,12 @@ FIELD_LABELS = {
 }
 
 
-class EmailSender(Protocol):
+class EmailSender(ABC):
+    @abstractmethod
     def send(self, to: str, subject: str, body: str) -> None: ...
 
 
-class SmtpEmailSender:
+class SmtpEmailSender(EmailSender):
     def __init__(
         self,
         host: str,
@@ -51,6 +53,8 @@ class SmtpEmailSender:
         use_tls: bool = False,
         timeout: float = 10.0,
     ) -> None:
+        if username and not use_tls:
+            raise ValueError("Autenticação SMTP exige TLS: defina SMTP_USE_TLS=true")
         self._host = host
         self._port = port
         self._sender = sender
@@ -68,13 +72,13 @@ class SmtpEmailSender:
 
         with smtplib.SMTP(self._host, self._port, timeout=self._timeout) as smtp:
             if self._use_tls:
-                smtp.starttls()
+                smtp.starttls(context=ssl.create_default_context())
             if self._username:
                 smtp.login(self._username, self._password or "")
             smtp.send_message(message)
 
 
-class LogEmailSender:
+class LogEmailSender(EmailSender):
     """Simula o envio registrando o e-mail no log (útil quando não há servidor SMTP)."""
 
     def send(self, to: str, subject: str, body: str) -> None:
@@ -111,11 +115,11 @@ class EmailTaskNotifier(TaskNotifier):
         )
 
     def _deliver(self, recipient: User, subject: str, body: str) -> None:
-        # A tarefa já foi salva quando a notificação é enviada: uma falha no envio é
-        # registrada no log, mas não desfaz a operação nem gera erro para o cliente.
+        # Cumpre o contrato da porta: a tarefa já foi salva, então qualquer falha no envio
+        # (servidor fora do ar, mensagem malformada...) é registrada e não chega ao cliente.
         try:
             self._sender.send(recipient.email, subject, body)
-        except OSError:
+        except Exception:
             logger.exception("Falha ao enviar e-mail para o usuário %s", recipient.id)
         else:
             logger.info("E-mail enviado para o usuário %s: %s", recipient.id, subject)

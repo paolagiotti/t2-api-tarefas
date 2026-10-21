@@ -66,6 +66,35 @@ def test_reassignment_notifies_new_assignee_and_creator(
     ]
 
 
+def test_previous_assignee_is_notified_when_creator_reassigns(
+    make_user, create_task, update_task, notifier
+):
+    ana, bruno, carla = make_user(name="Ana"), make_user(name="Bruno"), make_user(name="Carla")
+    task = create_task.execute(ana, NewTask(title="Revisar", assigned_to=bruno.id))
+    notifier.sent.clear()
+
+    update_task.execute(ana, task.id, changes(assigned_to=carla.id))
+
+    assert notifier.sent == [
+        SentNotification("assigned", task.id, carla.id, ana.id),
+        SentNotification("updated", task.id, bruno.id, ana.id, ("assigned_to",)),
+    ]
+
+
+def test_previous_assignee_is_notified_when_task_is_unassigned(
+    make_user, create_task, update_task, notifier
+):
+    ana, bruno = make_user(name="Ana"), make_user(name="Bruno")
+    task = create_task.execute(ana, NewTask(title="Revisar", assigned_to=bruno.id))
+    notifier.sent.clear()
+
+    update_task.execute(ana, task.id, changes(assigned_to=None))
+
+    assert notifier.sent == [
+        SentNotification("updated", task.id, bruno.id, ana.id, ("assigned_to",))
+    ]
+
+
 def test_no_notification_when_nothing_changes(make_user, create_task, update_task, notifier):
     ana, bruno = make_user(name="Ana"), make_user(name="Bruno")
     task = create_task.execute(ana, NewTask(title="Revisar", assigned_to=bruno.id))

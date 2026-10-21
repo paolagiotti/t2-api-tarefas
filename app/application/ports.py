@@ -99,7 +99,11 @@ class TokenService(ABC):
 
 
 class TaskNotifier(ABC):
-    """Avisa os envolvidos em uma tarefa sobre atribuições e alterações (e-mail, push, log...)."""
+    """Avisa os envolvidos em uma tarefa sobre atribuições e alterações (e-mail, push, log...).
+
+    As notificações são disparadas depois que a alteração foi confirmada no banco. Por isso as
+    implementações não devem propagar falhas de envio: elas registram o erro e seguem.
+    """
 
     @abstractmethod
     def task_assigned(self, task: Task, assignee: User, actor: User) -> None: ...
