@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.application.ports import UnitOfWork
 from app.domain.exceptions import ConflictError
+from app.infrastructure.repositories.comments import SqlAlchemyCommentRepository
 from app.infrastructure.repositories.tasks import SqlAlchemyTaskRepository
 from app.infrastructure.repositories.tokens import SqlAlchemyRevokedTokenRepository
 from app.infrastructure.repositories.users import SqlAlchemyUserRepository
@@ -15,6 +16,7 @@ class SqlAlchemyUnitOfWork(UnitOfWork):
         self._session = session
         self.users = SqlAlchemyUserRepository(session)
         self.tasks = SqlAlchemyTaskRepository(session)
+        self.comments = SqlAlchemyCommentRepository(session)
         self.revoked_tokens = SqlAlchemyRevokedTokenRepository(session)
 
     def commit(self) -> None:

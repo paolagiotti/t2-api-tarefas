@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.application.dto import Principal
 from app.application.ports import PasswordHasher, TaskNotifier, TokenService, UnitOfWork
 from app.application.use_cases.auth import AuthenticateToken, Login, Logout
+from app.application.use_cases.comments import AddComment, DeleteComment, ListComments
 from app.application.use_cases.tasks import CreateTask, DeleteTask, GetTask, ListTasks, UpdateTask
 from app.application.use_cases.users import CreateUser, DeleteUser, GetUser, UpdateUser
 from app.domain.entities import User
@@ -145,3 +146,23 @@ GetTaskDep = Annotated[GetTask, Depends(_get_task)]
 ListTasksDep = Annotated[ListTasks, Depends(_list_tasks)]
 UpdateTaskDep = Annotated[UpdateTask, Depends(_update_task)]
 DeleteTaskDep = Annotated[DeleteTask, Depends(_delete_task)]
+
+
+# Comentários
+
+
+def _add_comment(uow: UnitOfWorkDep) -> AddComment:
+    return AddComment(uow)
+
+
+def _list_comments(uow: UnitOfWorkDep) -> ListComments:
+    return ListComments(uow)
+
+
+def _delete_comment(uow: UnitOfWorkDep) -> DeleteComment:
+    return DeleteComment(uow)
+
+
+AddCommentDep = Annotated[AddComment, Depends(_add_comment)]
+ListCommentsDep = Annotated[ListComments, Depends(_list_comments)]
+DeleteCommentDep = Annotated[DeleteComment, Depends(_delete_comment)]

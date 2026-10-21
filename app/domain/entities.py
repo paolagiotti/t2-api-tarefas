@@ -7,6 +7,7 @@ from app.domain.exceptions import BusinessRuleViolation
 
 USER_NAME_MAX_LENGTH = 120
 TASK_TITLE_MAX_LENGTH = 200
+COMMENT_MAX_LENGTH = 2000
 
 
 def utc_now() -> datetime:
@@ -97,6 +98,21 @@ class Task:
 
     def touch(self) -> None:
         self.updated_at = utc_now()
+
+
+@dataclass(kw_only=True)
+class Comment:
+    task_id: UUID
+    author_id: UUID
+    content: str
+    id: UUID = field(default_factory=uuid4)
+    created_at: datetime = field(default_factory=utc_now)
+
+    def __post_init__(self) -> None:
+        self.content = _required_text(self.content, "comentário", COMMENT_MAX_LENGTH)
+
+    def can_be_deleted_by(self, user_id: UUID) -> bool:
+        return user_id == self.author_id
 
 
 def _required_text(value: str, label: str, max_length: int) -> str:

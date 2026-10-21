@@ -48,6 +48,16 @@ class TaskModel(Base):
     completed_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
 
 
+class CommentModel(Base):
+    __tablename__ = "task_comments"
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    task_id: Mapped[UUID] = mapped_column(ForeignKey("tasks.id", ondelete="CASCADE"), index=True)
+    author_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
+    content: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime())
+
+
 class RevokedTokenModel(Base):
     __tablename__ = "revoked_tokens"
 

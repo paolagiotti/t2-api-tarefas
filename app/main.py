@@ -7,7 +7,7 @@ from fastapi import FastAPI
 
 from app.api.errors import register_error_handlers
 from app.api.middleware import register_request_logging
-from app.api.routers import auth, health, tasks, users
+from app.api.routers import auth, comments, health, tasks, users
 from app.application.ports import TaskNotifier
 from app.config import Settings, get_settings
 from app.infrastructure.database import build_engine, build_session_factory
@@ -34,6 +34,7 @@ OPENAPI_TAGS = [
     {"name": "Autenticação", "description": "Login e logout com JWT."},
     {"name": "Usuários", "description": "Cadastro e manutenção de usuários."},
     {"name": "Tarefas", "description": "Criação, atribuição e acompanhamento de tarefas."},
+    {"name": "Comentários", "description": "Comentários em tarefas (sub-recurso)."},
     {"name": "Saúde", "description": "Verificação de disponibilidade da API."},
 ]
 
@@ -71,7 +72,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     register_request_logging(app)
     register_error_handlers(app)
-    for router in (auth.router, users.router, tasks.router, health.router):
+    for router in (auth.router, users.router, tasks.router, comments.router, health.router):
         app.include_router(router)
     return app
 

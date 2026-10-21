@@ -10,7 +10,7 @@ from datetime import datetime
 from uuid import UUID
 
 from app.application.dto import IssuedToken, TaskFilters, TokenClaims
-from app.domain.entities import Task, User
+from app.domain.entities import Comment, Task, User
 
 
 class UserRepository(ABC):
@@ -44,6 +44,20 @@ class TaskRepository(ABC):
     def find(self, filters: TaskFilters) -> list[Task]: ...
 
 
+class CommentRepository(ABC):
+    @abstractmethod
+    def add(self, comment: Comment) -> None: ...
+
+    @abstractmethod
+    def get(self, comment_id: UUID) -> Comment | None: ...
+
+    @abstractmethod
+    def list_for_task(self, task_id: UUID) -> list[Comment]: ...
+
+    @abstractmethod
+    def delete(self, comment: Comment) -> None: ...
+
+
 class RevokedTokenRepository(ABC):
     @abstractmethod
     def add(self, token_id: str, expires_at: datetime) -> None: ...
@@ -60,6 +74,7 @@ class UnitOfWork(ABC):
 
     users: UserRepository
     tasks: TaskRepository
+    comments: CommentRepository
     revoked_tokens: RevokedTokenRepository
 
     @abstractmethod
