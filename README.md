@@ -5,7 +5,7 @@ e Padrões** (Unisinos), prof. Guilherme Silva de Lacerda.
 
 | | |
 |---|---|
-| Equipe | Paola _(sobrenome)_ e _(nome da colega)_ |
+| Equipe | Paola Giotti e Paula Muller |
 | Vídeo de demonstração | _(link do vídeo)_ |
 | Especificação OpenAPI | [`docs/openapi.json`](docs/openapi.json), também servida em `/docs` com a API no ar |
 
