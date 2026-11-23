@@ -3,7 +3,8 @@ import re
 import time
 from uuid import uuid4
 
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Request, Response, status
+from fastapi.responses import JSONResponse
 from starlette.middleware.base import RequestResponseEndpoint
 
 from app.logging_config import request_id_var
@@ -15,7 +16,11 @@ logger = logging.getLogger("app.http")
 
 
 def register_request_logging(app: FastAPI) -> None:
-    """Registra método, rota, status e duração de cada requisição, com um request id."""
+    """Registra método, rota, status e duração de cada requisição, com um request id.
+
+    Também é a última barreira para erros inesperados: registra o traceback uma única vez e
+    devolve um 500 genérico, sem expor detalhes internos ao cliente.
+    """
 
     @app.middleware("http")
     async def log_request(request: Request, call_next: RequestResponseEndpoint) -> Response:
@@ -26,14 +31,13 @@ def register_request_logging(app: FastAPI) -> None:
             response = await call_next(request)
         except Exception:
             logger.exception(
-                "%s %s -> erro não tratado (%.1f ms)",
-                request.method,
-                request.url.path,
-                _elapsed_ms(started_at),
+                "%s %s -> 500 (%.1f ms)", request.method, request.url.path, _elapsed_ms(started_at)
             )
-            raise
+            response = JSONResponse(
+                {"detail": "Erro interno do servidor"},
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
         else:
-            response.headers[REQUEST_ID_HEADER] = request_id
             logger.info(
                 "%s %s -> %d (%.1f ms)",
                 request.method,
@@ -41,9 +45,11 @@ def register_request_logging(app: FastAPI) -> None:
                 response.status_code,
                 _elapsed_ms(started_at),
             )
-            return response
         finally:
             request_id_var.reset(token)
+
+        response.headers[REQUEST_ID_HEADER] = request_id
+        return response
 
 
 def _request_id_from(request: Request) -> str:

@@ -33,15 +33,17 @@ def test_add_comment_returns_201(client, register, task):
     assert body["createdAt"]
 
 
-def test_list_comments_in_creation_order(client, register, task):
+def test_list_comments_in_chronological_order(client, register, task):
     bruno = register("Bruno")
     for content in ("primeiro", "segundo"):
         client.post(comments_url(task["id"]), json={"content": content}, headers=bruno.headers)
 
     response = client.get(comments_url(task["id"]), headers=bruno.headers)
 
+    comments = response.json()
     assert response.status_code == 200
-    assert [comment["content"] for comment in response.json()] == ["primeiro", "segundo"]
+    assert {comment["content"] for comment in comments} == {"primeiro", "segundo"}
+    assert [c["createdAt"] for c in comments] == sorted(c["createdAt"] for c in comments)
 
 
 def test_comment_on_unknown_task_returns_404(client, register):

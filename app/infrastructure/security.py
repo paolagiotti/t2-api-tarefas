@@ -58,8 +58,6 @@ class JwtTokenService(TokenService):
         }
         return IssuedToken(
             access_token=jwt.encode(payload, self._secret, algorithm=self._algorithm),
-            token_id=token_id,
-            expires_at=expires_at,
             expires_in=int(self._expires_in.total_seconds()),
         )
 

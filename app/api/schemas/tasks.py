@@ -1,11 +1,9 @@
 from datetime import date, datetime
-from typing import Self
 from uuid import UUID
 
-from pydantic import Field, model_validator
-from pydantic.alias_generators import to_camel
+from pydantic import Field, field_validator
 
-from app.api.schemas.base import ApiSchema
+from app.api.schemas.base import RequestSchema, ResponseSchema, reject_null
 from app.application.dto import NewTask, TaskChanges
 from app.domain.entities import (
     TASK_DESCRIPTION_MAX_LENGTH,
@@ -15,7 +13,7 @@ from app.domain.entities import (
 )
 
 
-class TaskCreateRequest(ApiSchema):
+class TaskCreateRequest(RequestSchema):
     title: str = Field(
         min_length=1, max_length=TASK_TITLE_MAX_LENGTH, examples=["Gravar o vídeo de demonstração"]
     )
@@ -34,10 +32,11 @@ class TaskCreateRequest(ApiSchema):
         )
 
 
-class TaskUpdateRequest(ApiSchema):
+class TaskUpdateRequest(RequestSchema):
     """Atualização parcial: somente os campos enviados mudam.
 
-    Envie `null` em `description`, `dueDate` ou `assignedTo` para limpar o valor.
+    Envie `null` em `description`, `dueDate` ou `assignedTo` para limpar o valor; `title`,
+    `status` e `priority` não aceitam `null`.
     """
 
     title: str | None = Field(default=None, min_length=1, max_length=TASK_TITLE_MAX_LENGTH)
@@ -47,19 +46,14 @@ class TaskUpdateRequest(ApiSchema):
     due_date: date | None = None
     assigned_to: UUID | None = None
 
-    @model_validator(mode="after")
-    def reject_null_in_required_fields(self) -> Self:
-        for name in ("title", "status", "priority"):
-            if name in self.model_fields_set and getattr(self, name) is None:
-                raise ValueError(f"o campo {to_camel(name)} não pode ser nulo")
-        return self
+    _not_null = field_validator("title", "status", "priority", mode="before")(reject_null)
 
     def to_input(self) -> TaskChanges:
         data = self.model_dump(exclude_unset=True)
         return TaskChanges(**data, provided=frozenset(data))
 
 
-class TaskResponse(ApiSchema):
+class TaskResponse(ResponseSchema):
     id: UUID
     title: str
     description: str | None

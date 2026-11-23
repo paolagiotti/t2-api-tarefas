@@ -30,15 +30,22 @@ def test_unexpected_errors_return_generic_500_and_are_logged(app, caplog):
 
     app.add_api_route("/explode", explode)
 
-    with (
-        TestClient(app, raise_server_exceptions=False) as client,
-        caplog.at_level(logging.ERROR, logger="app.http"),
-    ):
-        response = client.get("/explode")
+    with TestClient(app) as client, caplog.at_level(logging.ERROR, logger="app.http"):
+        response = client.get("/explode", headers={"X-Request-ID": "req-500"})
 
     assert response.status_code == 500
     assert response.json() == {"detail": "Erro interno do servidor"}
+    assert response.headers["X-Request-ID"] == "req-500"
+    [record] = [record for record in caplog.records if record.levelno == logging.ERROR]
+    assert record.exc_info is not None
     assert "falha inesperada" in caplog.text
+
+
+def test_unknown_route_returns_404_in_portuguese(client):
+    response = client.get("/nao-existe")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Rota não encontrada"}
 
 
 @pytest.mark.parametrize(

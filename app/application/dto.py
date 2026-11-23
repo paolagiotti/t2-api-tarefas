@@ -71,8 +71,6 @@ class TaskFilters:
 @dataclass(frozen=True)
 class IssuedToken:
     access_token: str
-    token_id: str
-    expires_at: datetime
     expires_in: int
 
 

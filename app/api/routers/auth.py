@@ -1,4 +1,4 @@
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Response, status
 
 from app.api.dependencies import CurrentPrincipal, LoginDep, LogoutDep
 from app.api.schemas.auth import LoginRequest, TokenResponse
@@ -13,8 +13,10 @@ router = APIRouter(prefix="/auth", tags=["Autenticação"])
     description="Valida e-mail e senha e devolve um token JWT para as demais requisições.",
     responses=error_responses(401, 422),
 )
-def login(payload: LoginRequest, use_case: LoginDep) -> TokenResponse:
+def login(payload: LoginRequest, response: Response, use_case: LoginDep) -> TokenResponse:
     token = use_case.execute(payload.email, payload.password)
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Pragma"] = "no-cache"
     return TokenResponse(access_token=token.access_token, expires_in=token.expires_in)
 
 

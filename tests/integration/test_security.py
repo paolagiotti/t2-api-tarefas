@@ -4,6 +4,7 @@ from uuid import uuid4
 import jwt
 import pytest
 
+from app.domain.entities import utc_now
 from app.domain.exceptions import AuthenticationError, BusinessRuleViolation
 from app.infrastructure.security import BcryptPasswordHasher, JwtTokenService
 
@@ -42,13 +43,14 @@ def test_jwt_round_trip():
     service = JwtTokenService(SECRET)
     user_id = uuid4()
 
+    issued_at = utc_now()
     issued = service.issue(user_id)
     claims = service.decode(issued.access_token)
 
     assert claims.user_id == user_id
-    assert claims.token_id == issued.token_id
-    assert claims.expires_at == issued.expires_at.replace(microsecond=0)
     assert issued.expires_in == 3600
+    assert timedelta(minutes=59) < claims.expires_at - issued_at <= timedelta(hours=1, seconds=1)
+    assert service.decode(service.issue(user_id).access_token).token_id != claims.token_id
 
 
 def test_jwt_rejects_expired_token():

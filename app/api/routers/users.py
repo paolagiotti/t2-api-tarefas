@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, Response, status
 
 from app.api.dependencies import (
     CreateUserDep,
@@ -23,8 +23,12 @@ router = APIRouter(prefix="/users", tags=["Usuários"])
     description="Cadastro público. A senha é armazenada apenas como hash (bcrypt).",
     responses=error_responses(409, 422),
 )
-def create_user(payload: UserCreateRequest, use_case: CreateUserDep) -> UserResponse:
-    return UserResponse.model_validate(use_case.execute(payload.to_input()))
+def create_user(
+    payload: UserCreateRequest, request: Request, response: Response, use_case: CreateUserDep
+) -> UserResponse:
+    user = use_case.execute(payload.to_input())
+    response.headers["Location"] = str(request.url_for("get_user", user_id=str(user.id)))
+    return UserResponse.model_validate(user)
 
 
 @router.get(

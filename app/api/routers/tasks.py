@@ -2,7 +2,7 @@ from datetime import date
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Request, Response, status
 
 from app.api.dependencies import (
     CreateTaskDep,
@@ -33,9 +33,15 @@ router = APIRouter(
     description="A tarefa é criada como `pending`; quem cria fica registrado como criador.",
 )
 def create_task(
-    payload: TaskCreateRequest, actor: CurrentUser, use_case: CreateTaskDep
+    payload: TaskCreateRequest,
+    actor: CurrentUser,
+    request: Request,
+    response: Response,
+    use_case: CreateTaskDep,
 ) -> TaskResponse:
-    return TaskResponse.model_validate(use_case.execute(actor, payload.to_input()))
+    task = use_case.execute(actor, payload.to_input())
+    response.headers["Location"] = str(request.url_for("get_task", task_id=str(task.id)))
+    return TaskResponse.model_validate(task)
 
 
 @router.get(
@@ -44,7 +50,9 @@ def create_task(
     description=(
         "Todos os filtros são opcionais e combináveis, por exemplo "
         "`/tasks?status=done&priority=high&dueBefore=2026-12-01`. "
-        "O resultado é ordenado da tarefa mais recente para a mais antiga."
+        "`dueBefore` e `dueAfter` são exclusivos e ignoram tarefas sem prazo. "
+        "O resultado é paginado (`limit`, padrão 50, máximo 100) e ordenado da tarefa mais "
+        "recente para a mais antiga."
     ),
 )
 def list_tasks(

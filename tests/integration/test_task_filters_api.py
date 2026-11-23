@@ -66,3 +66,13 @@ def test_invalid_filter_values_return_422(client, seeded, params):
     response = client.get("/tasks", params=params, headers=ana.headers)
 
     assert response.status_code == 422
+
+
+def test_invalid_status_lists_the_accepted_values(client, seeded):
+    ana, _ = seeded
+
+    response = client.get("/tasks", params={"status": "finished"}, headers=ana.headers)
+
+    [error] = response.json()["errors"]
+    assert error["field"] == "query.status"
+    assert error["message"] == "valor inválido; valores aceitos: 'pending', 'in_progress' ou 'done'"

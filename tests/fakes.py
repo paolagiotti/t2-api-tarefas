@@ -156,12 +156,7 @@ class FakeTokenService(TokenService):
         )
         access_token = f"token-{claims.token_id}"
         self._issued[access_token] = claims
-        return IssuedToken(
-            access_token=access_token,
-            token_id=claims.token_id,
-            expires_at=claims.expires_at,
-            expires_in=int(self._ttl.total_seconds()),
-        )
+        return IssuedToken(access_token=access_token, expires_in=int(self._ttl.total_seconds()))
 
     def decode(self, token: str) -> TokenClaims:
         try:

@@ -12,6 +12,7 @@ def test_create_user_returns_201_without_sensitive_data(client):
     body = response.json()
     assert set(body) == {"id", "name", "email", "createdAt", "updatedAt"}
     assert body["email"] == "ana@example.com"
+    assert response.headers["Location"].endswith(f"/users/{body['id']}")
 
 
 def test_create_user_with_existing_email_returns_409(client, register):
@@ -36,6 +37,23 @@ def test_create_user_validates_payload(client):
         "body.email",
         "body.password",
     }
+
+
+def test_request_body_must_follow_the_documented_contract(client, register):
+    ana = register("Ana")
+    url = f"/users/{ana.id}"
+
+    unknown = client.put(url, json={"full_name": "Ana Lima"}, headers=ana.headers)
+    null = client.put(url, json={"name": None}, headers=ana.headers)
+    broken = client.put(
+        url, content="{nome:", headers={**ana.headers, "Content-Type": "application/json"}
+    )
+
+    assert unknown.json()["errors"] == [
+        {"field": "body.full_name", "message": "campo não reconhecido"}
+    ]
+    assert null.json()["errors"] == [{"field": "body.name", "message": "não pode ser nulo"}]
+    assert broken.json()["errors"] == [{"field": "body", "message": "JSON inválido"}]
 
 
 def test_get_user_requires_authentication(client, register):

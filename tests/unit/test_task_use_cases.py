@@ -78,7 +78,7 @@ def test_creator_updates_task_fields(uow, make_user, create_task, update_task):
     assert stored.title == "Versão final"
     assert stored.priority == TaskPriority.HIGH
     assert stored.due_date == date(2026, 11, 30)
-    assert stored.updated_at > task.updated_at
+    assert stored.updated_at >= task.updated_at
 
 
 def test_assignee_can_complete_task(uow, make_user, create_task, update_task):

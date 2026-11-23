@@ -16,7 +16,15 @@ def test_tasks_require_authentication(client):
 def test_create_task_returns_201_with_defaults(client, register):
     ana = register("Ana")
 
-    task = create_task(client, ana, description="Slides + roteiro", dueDate="2026-11-30")
+    response = client.post(
+        "/tasks",
+        json={"title": "Preparar apresentação", "description": "Slides", "dueDate": "2026-11-30"},
+        headers=ana.headers,
+    )
+    task = response.json()
+
+    assert response.status_code == 201
+    assert response.headers["Location"].endswith(f"/tasks/{task['id']}")
 
     assert task["status"] == "pending"
     assert task["priority"] == "medium"
@@ -94,10 +102,12 @@ def test_list_tasks_paginates(client, register):
     for index in range(3):
         create_task(client, ana, title=f"Tarefa {index}")
 
-    page = client.get("/tasks", params={"limit": 2, "offset": 1}, headers=ana.headers)
+    everything = client.get("/tasks", headers=ana.headers).json()
+    page = client.get("/tasks", params={"limit": 2, "offset": 1}, headers=ana.headers).json()
     invalid = client.get("/tasks", params={"limit": 0}, headers=ana.headers)
 
-    assert [task["title"] for task in page.json()] == ["Tarefa 1", "Tarefa 0"]
+    assert len(everything) == 3
+    assert page == everything[1:3]
     assert invalid.status_code == 422
 
 
@@ -145,6 +155,7 @@ def test_update_rejects_null_title(client, register):
     response = client.put(f"/tasks/{task['id']}", json={"title": None}, headers=ana.headers)
 
     assert response.status_code == 422
+    assert response.json()["errors"] == [{"field": "body.title", "message": "não pode ser nulo"}]
 
 
 def test_other_user_cannot_update_task(client, register):

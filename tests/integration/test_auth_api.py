@@ -7,6 +7,7 @@ def test_login_returns_bearer_token(client, register):
     response = client.post("/auth/login", json={"email": ana.email, "password": PASSWORD})
 
     assert response.status_code == 200
+    assert response.headers["Cache-Control"] == "no-store"
     body = response.json()
     assert body["token_type"] == "bearer"
     assert body["expires_in"] == 3600

@@ -51,7 +51,7 @@ def test_authenticate_returns_user_and_claims(uow, tokens, make_user):
     principal = AuthenticateToken(uow, tokens).execute(issued.access_token)
 
     assert principal.user.id == user.id
-    assert principal.claims.token_id == issued.token_id
+    assert principal.claims == tokens.decode(issued.access_token)
 
 
 def test_authenticate_rejects_unknown_token(uow, tokens):
