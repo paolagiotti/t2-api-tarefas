@@ -7,12 +7,6 @@ from sqlalchemy.exc import StatementError
 from app.application.dto import TaskFilters
 from app.domain.entities import Task, TaskPriority, TaskStatus, User, utc_now
 from app.domain.exceptions import ConflictError
-from app.infrastructure.unit_of_work import SqlAlchemyUnitOfWork
-
-
-@pytest.fixture
-def uow(session):
-    return SqlAlchemyUnitOfWork(session)
 
 
 def make_user(**overrides) -> User:

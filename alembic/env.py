@@ -3,7 +3,7 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import create_engine, pool
 
-from app.config import get_settings
+from app.config import DatabaseSettings
 from app.infrastructure import models  # noqa: F401  (registra as tabelas no metadata)
 from app.infrastructure.database import Base
 
@@ -16,7 +16,7 @@ target_metadata = Base.metadata
 
 
 def database_url() -> str:
-    return config.get_main_option("sqlalchemy.url") or get_settings().database_url
+    return config.get_main_option("sqlalchemy.url") or DatabaseSettings().database_url
 
 
 def run_migrations_offline() -> None:

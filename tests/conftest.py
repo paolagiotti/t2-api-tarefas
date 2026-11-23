@@ -6,11 +6,10 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine
-from sqlalchemy.orm import Session
 
 from app.config import Settings
 from app.infrastructure import models  # noqa: F401  (registra as tabelas no metadata)
-from app.infrastructure.database import Base, build_engine, build_session_factory
+from app.infrastructure.database import Base, build_engine
 from app.main import create_app
 
 # Por padrão os testes usam SQLite em memória. Defina TEST_DATABASE_URL para rodá-los
@@ -46,12 +45,6 @@ def engine(settings: Settings) -> Iterator[Engine]:
     yield engine
     Base.metadata.drop_all(engine)
     engine.dispose()
-
-
-@pytest.fixture
-def session(engine: Engine) -> Iterator[Session]:
-    with build_session_factory(engine)() as session:
-        yield session
 
 
 @pytest.fixture

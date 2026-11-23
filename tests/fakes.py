@@ -126,6 +126,9 @@ class InMemoryUnitOfWork(UnitOfWork):
     def commit(self) -> None:
         self.commits += 1
 
+    def close(self) -> None:
+        pass
+
 
 class FakePasswordHasher(PasswordHasher):
     def hash(self, password: str) -> str:

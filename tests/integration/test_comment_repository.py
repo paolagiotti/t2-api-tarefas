@@ -1,12 +1,6 @@
 import pytest
 
 from app.domain.entities import Comment, Task, User
-from app.infrastructure.unit_of_work import SqlAlchemyUnitOfWork
-
-
-@pytest.fixture
-def uow(session):
-    return SqlAlchemyUnitOfWork(session)
 
 
 @pytest.fixture

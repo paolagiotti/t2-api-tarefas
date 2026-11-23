@@ -1,7 +1,8 @@
 """Injeção de dependências da camada HTTP.
 
-Cada provedor monta um caso de uso com as implementações concretas das suas portas. Os routers
-só declaram de qual caso de uso precisam, sem saber como ele é construído.
+Cada provedor monta um caso de uso com as implementações das suas portas, que o composition root
+(app/main.py) registra em `app.state`. Os routers só declaram de qual caso de uso precisam, e esta
+camada não conhece SQLAlchemy, bcrypt nem SMTP.
 """
 
 from collections.abc import Iterator
@@ -9,7 +10,6 @@ from typing import Annotated
 
 from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy.orm import Session
 
 from app.application.dto import Principal
 from app.application.ports import PasswordHasher, TaskNotifier, TokenService, UnitOfWork
@@ -19,24 +19,16 @@ from app.application.use_cases.tasks import CreateTask, DeleteTask, GetTask, Lis
 from app.application.use_cases.users import CreateUser, DeleteUser, GetUser, UpdateUser
 from app.domain.entities import User
 from app.domain.exceptions import AuthenticationError
-from app.infrastructure.unit_of_work import SqlAlchemyUnitOfWork
 
 bearer_scheme = HTTPBearer(auto_error=False, description="Token JWT obtido em `POST /auth/login`.")
 
 
-# Infraestrutura
+# Implementações das portas, registradas em app.state pelo composition root (app/main.py)
 
 
-def get_session(request: Request) -> Iterator[Session]:
-    session = request.app.state.session_factory()
-    try:
-        yield session
-    finally:
-        session.close()
-
-
-def get_unit_of_work(session: Annotated[Session, Depends(get_session)]) -> UnitOfWork:
-    return SqlAlchemyUnitOfWork(session)
+def get_unit_of_work(request: Request) -> Iterator[UnitOfWork]:
+    with request.app.state.uow_factory() as uow:
+        yield uow
 
 
 def get_password_hasher(request: Request) -> PasswordHasher:

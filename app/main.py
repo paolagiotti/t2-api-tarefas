@@ -2,6 +2,7 @@ import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import timedelta
+from functools import partial
 
 from fastapi import FastAPI
 
@@ -18,6 +19,7 @@ from app.infrastructure.notifications import (
     SmtpEmailSender,
 )
 from app.infrastructure.security import BcryptPasswordHasher, JwtTokenService
+from app.infrastructure.unit_of_work import SqlAlchemyUnitOfWork
 from app.logging_config import configure_logging
 
 logger = logging.getLogger(__name__)
@@ -59,9 +61,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         openapi_tags=OPENAPI_TAGS,
         lifespan=lifespan,
     )
-    app.state.settings = settings
     app.state.engine = engine
-    app.state.session_factory = build_session_factory(engine)
+    app.state.uow_factory = partial(SqlAlchemyUnitOfWork, build_session_factory(engine))
     app.state.password_hasher = BcryptPasswordHasher(rounds=settings.bcrypt_rounds)
     app.state.token_service = JwtTokenService(
         settings.jwt_secret.get_secret_value(),

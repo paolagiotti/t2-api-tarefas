@@ -7,6 +7,7 @@ o que mantém os casos de uso independentes de frameworks.
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from datetime import datetime
+from typing import Self
 from uuid import UUID
 
 from app.application.dto import IssuedToken, TaskFilters, TokenClaims
@@ -70,15 +71,28 @@ class RevokedTokenRepository(ABC):
 
 
 class UnitOfWork(ABC):
-    """Reúne os repositórios de uma operação e confirma as alterações em uma única transação."""
+    """Reúne os repositórios de uma operação e confirma as alterações em uma única transação.
+
+    Usada como gerenciador de contexto: ao sair do bloco, o que não foi confirmado com
+    `commit` é descartado.
+    """
 
     users: UserRepository
     tasks: TaskRepository
     comments: CommentRepository
     revoked_tokens: RevokedTokenRepository
 
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(self, *exc_info: object) -> None:
+        self.close()
+
     @abstractmethod
     def commit(self) -> None: ...
+
+    @abstractmethod
+    def close(self) -> None: ...
 
 
 class PasswordHasher(ABC):

@@ -1,5 +1,5 @@
-"""Garante a regra de dependência da Clean Architecture: camadas internas não importam
-camadas externas nem frameworks."""
+"""Garante a regra de dependência da Clean Architecture: domínio e aplicação não importam
+camadas externas nem frameworks, e a camada HTTP não depende da infraestrutura."""
 
 import ast
 from pathlib import Path
@@ -11,6 +11,7 @@ APP_DIR = Path(__file__).resolve().parents[1] / "app"
 FORBIDDEN_IMPORTS = {
     "domain": ("app.application", "app.infrastructure", "app.api", "fastapi", "sqlalchemy"),
     "application": ("app.infrastructure", "app.api", "fastapi", "sqlalchemy", "pydantic"),
+    "api": ("app.infrastructure", "sqlalchemy"),
 }
 
 
@@ -26,7 +27,7 @@ def imported_modules(path: Path) -> set[str]:
 
 
 @pytest.mark.parametrize("layer", sorted(FORBIDDEN_IMPORTS))
-def test_inner_layer_does_not_depend_on_outer_layers(layer):
+def test_layer_respects_the_dependency_rule(layer):
     violations = [
         f"{path.relative_to(APP_DIR)} importa {module}"
         for path in sorted((APP_DIR / layer).rglob("*.py"))
