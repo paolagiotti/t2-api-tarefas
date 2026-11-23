@@ -4,7 +4,7 @@ from uuid import uuid4
 import jwt
 import pytest
 
-from app.domain.exceptions import AuthenticationError
+from app.domain.exceptions import AuthenticationError, BusinessRuleViolation
 from app.infrastructure.security import BcryptPasswordHasher, JwtTokenService
 
 SECRET = "segredo-de-teste-com-pelo-menos-32-caracteres"
@@ -31,6 +31,11 @@ def test_bcrypt_uses_random_salt(hasher):
 def test_bcrypt_treats_malformed_input_as_wrong_password(hasher):
     assert not hasher.verify("senha-segura", "nao-e-um-hash")
     assert not hasher.verify("x" * 100, hasher.hash("senha-segura"))
+
+
+def test_bcrypt_refuses_passwords_longer_than_72_bytes(hasher):
+    with pytest.raises(BusinessRuleViolation):
+        hasher.hash("ç" * 37)
 
 
 def test_jwt_round_trip():

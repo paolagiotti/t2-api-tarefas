@@ -62,7 +62,7 @@ class UpdateTask:
 
     def execute(self, actor: User, task_id: UUID, changes: TaskChanges) -> Task:
         task = _get_task(self._uow, task_id)
-        if not task.can_be_edited_by(actor.id):
+        if not (task.can_be_edited_by(actor.id) or _creator_left(self._uow, task)):
             raise PermissionDeniedError("Apenas o criador ou o responsável podem alterar a tarefa")
 
         before = replace(task)
@@ -88,7 +88,7 @@ class UpdateTask:
         if changes.priority is not None:
             task.priority = changes.priority
         if changes.has("description"):
-            task.description = changes.description
+            task.describe(changes.description)
         if changes.has("due_date"):
             task.due_date = changes.due_date
 
@@ -130,7 +130,7 @@ class DeleteTask:
 
     def execute(self, actor: User, task_id: UUID) -> None:
         task = _get_task(self._uow, task_id)
-        if not task.can_be_deleted_by(actor.id):
+        if not (task.can_be_deleted_by(actor.id) or _creator_left(self._uow, task)):
             raise PermissionDeniedError("Apenas o criador pode remover a tarefa")
 
         self._uow.tasks.delete(task)
@@ -143,6 +143,13 @@ def _get_task(uow: UnitOfWork, task_id: UUID) -> Task:
     if task is None:
         raise NotFoundError("Tarefa não encontrada")
     return task
+
+
+def _creator_left(uow: UnitOfWork, task: Task) -> bool:
+    """Quando o criador é removido, a tarefa passa a ser da equipe: qualquer usuário pode
+    editá-la ou removê-la, para que ela não fique sem ninguém que possa cuidar dela."""
+    creator = uow.users.get(task.created_by)
+    return creator is None or not creator.is_active
 
 
 def _get_assignable_user(uow: UnitOfWork, user_id: UUID) -> User:

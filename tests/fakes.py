@@ -20,7 +20,7 @@ from app.application.ports import (
     UnitOfWork,
     UserRepository,
 )
-from app.domain.entities import Comment, Task, User, utc_now
+from app.domain.entities import Comment, Task, TaskStatus, User, utc_now
 from app.domain.exceptions import AuthenticationError
 
 
@@ -64,6 +64,13 @@ class InMemoryTaskRepository(TaskRepository):
         tasks = [replace(task) for task in self.items.values() if _matches(task, filters)]
         tasks.sort(key=lambda task: task.created_at, reverse=True)
         return tasks[filters.offset : filters.offset + filters.limit]
+
+    def list_open_assigned_to(self, user_id: UUID) -> list[Task]:
+        return [
+            replace(task)
+            for task in self.items.values()
+            if task.assigned_to == user_id and task.status != TaskStatus.DONE
+        ]
 
 
 def _matches(task: Task, filters: TaskFilters) -> bool:

@@ -1,4 +1,5 @@
 import logging
+from dataclasses import replace
 from uuid import UUID
 
 from app.application.dto import NewUser, UserChanges
@@ -14,7 +15,7 @@ from app.domain.exceptions import (
 logger = logging.getLogger(__name__)
 
 PASSWORD_MIN_LENGTH = 8
-PASSWORD_MAX_BYTES = 72  # limite do algoritmo bcrypt
+PASSWORD_MAX_LENGTH = 128
 
 
 class CreateUser:
@@ -51,16 +52,22 @@ class UpdateUser:
         _ensure_same_user(actor, user_id, action="alterar")
         user = get_active_user(self._uow, user_id)
 
+        new_email = normalize_email(changes.email) if changes.email is not None else user.email
+        if new_email != user.email or changes.password is not None:
+            # Trocar credenciais exige a senha atual: um token roubado não basta.
+            self._confirm_current_password(user, changes.current_password)
+
+        before = replace(user)
         if changes.name is not None:
             user.rename(changes.name)
-        if changes.email is not None:
-            email = normalize_email(changes.email)
-            if email != user.email:
-                _ensure_email_available(self._uow, email)
-                user.email = email
+        if new_email != user.email:
+            _ensure_email_available(self._uow, new_email)
+            user.change_email(new_email)
         if changes.password is not None:
             _ensure_valid_password(changes.password)
             user.password_hash = self._hasher.hash(changes.password)
+        if user == before:
+            return user
 
         user.touch()
         self._uow.users.save(user)
@@ -68,8 +75,16 @@ class UpdateUser:
         logger.info("Usuário %s atualizado", user.id)
         return user
 
+    def _confirm_current_password(self, user: User, current_password: str | None) -> None:
+        if current_password is None:
+            raise BusinessRuleViolation("Informe a senha atual para alterar e-mail ou senha")
+        if not self._hasher.verify(current_password, user.password_hash):
+            raise PermissionDeniedError("Senha atual incorreta")
+
 
 class DeleteUser:
+    """Desativa o usuário e libera as tarefas em aberto sob sua responsabilidade."""
+
     def __init__(self, uow: UnitOfWork) -> None:
         self._uow = uow
 
@@ -79,8 +94,17 @@ class DeleteUser:
 
         user.deactivate()
         self._uow.users.save(user)
+        released = self._uow.tasks.list_open_assigned_to(user.id)
+        for task in released:
+            task.assign_to(None)
+            task.touch()
+            self._uow.tasks.save(task)
         self._uow.commit()
-        logger.info("Usuário %s desativado (soft delete)", user.id)
+        logger.info(
+            "Usuário %s desativado (soft delete); %d tarefa(s) em aberto ficaram sem responsável",
+            user.id,
+            len(released),
+        )
 
 
 def get_active_user(uow: UnitOfWork, user_id: UUID) -> User:
@@ -101,7 +125,7 @@ def _ensure_email_available(uow: UnitOfWork, email: str) -> None:
 
 
 def _ensure_valid_password(password: str) -> None:
-    if len(password) < PASSWORD_MIN_LENGTH:
-        raise BusinessRuleViolation(f"A senha deve ter pelo menos {PASSWORD_MIN_LENGTH} caracteres")
-    if len(password.encode()) > PASSWORD_MAX_BYTES:
-        raise BusinessRuleViolation(f"A senha deve ter no máximo {PASSWORD_MAX_BYTES} bytes")
+    if not PASSWORD_MIN_LENGTH <= len(password) <= PASSWORD_MAX_LENGTH:
+        raise BusinessRuleViolation(
+            f"A senha deve ter entre {PASSWORD_MIN_LENGTH} e {PASSWORD_MAX_LENGTH} caracteres"
+        )

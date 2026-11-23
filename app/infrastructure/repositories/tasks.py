@@ -48,6 +48,12 @@ class SqlAlchemyTaskRepository(TaskRepository):
         )
         return [_to_entity(model) for model in self._session.scalars(query)]
 
+    def list_open_assigned_to(self, user_id: UUID) -> list[Task]:
+        query = select(TaskModel).where(
+            TaskModel.assigned_to == user_id, TaskModel.status != TaskStatus.DONE.value
+        )
+        return [_to_entity(model) for model in self._session.scalars(query)]
+
 
 def _to_entity(model: TaskModel) -> Task:
     return Task(

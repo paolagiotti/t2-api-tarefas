@@ -1,11 +1,14 @@
 from pydantic import BaseModel, EmailStr, Field
 
 from app.api.schemas.base import ApiSchema
+from app.application.use_cases.users import PASSWORD_MAX_LENGTH
 
 
 class LoginRequest(ApiSchema):
     email: EmailStr = Field(examples=["ana@example.com"])
-    password: str = Field(min_length=1, max_length=72, examples=["senha-forte-123"])
+    password: str = Field(
+        min_length=1, max_length=PASSWORD_MAX_LENGTH, examples=["senha-forte-123"]
+    )
 
 
 class TokenResponse(BaseModel):

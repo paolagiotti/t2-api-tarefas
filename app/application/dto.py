@@ -14,11 +14,15 @@ class NewUser:
 
 @dataclass(frozen=True)
 class UserChanges:
-    """Alteração parcial de usuário: campos None não são alterados."""
+    """Alteração parcial de usuário: campos None não são alterados.
+
+    `current_password` é exigida apenas para trocar e-mail ou senha.
+    """
 
     name: str | None = None
     email: str | None = None
     password: str | None = None
+    current_password: str | None = None
 
 
 @dataclass(frozen=True)

@@ -7,7 +7,12 @@ from uuid import UUID
 from sqlalchemy import CheckConstraint, Date, ForeignKey, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.domain.entities import TaskPriority, TaskStatus
+from app.domain.entities import (
+    TASK_TITLE_MAX_LENGTH,
+    USER_NAME_MAX_LENGTH,
+    TaskPriority,
+    TaskStatus,
+)
 from app.infrastructure.database import Base, UTCDateTime
 
 
@@ -20,7 +25,7 @@ class UserModel(Base):
     __tablename__ = "users"
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
-    name: Mapped[str] = mapped_column(String(120))
+    name: Mapped[str] = mapped_column(String(USER_NAME_MAX_LENGTH))
     email: Mapped[str] = mapped_column(String(254), unique=True)
     password_hash: Mapped[str] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(UTCDateTime())
@@ -36,7 +41,7 @@ class TaskModel(Base):
     )
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
-    title: Mapped[str] = mapped_column(String(200))
+    title: Mapped[str] = mapped_column(String(TASK_TITLE_MAX_LENGTH))
     description: Mapped[str | None] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(20), index=True)
     priority: Mapped[str] = mapped_column(String(10), index=True)

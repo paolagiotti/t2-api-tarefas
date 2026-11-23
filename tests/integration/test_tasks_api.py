@@ -38,6 +38,15 @@ def test_create_task_validates_payload(client, register):
     }
 
 
+def test_title_line_breaks_become_spaces(client, register):
+    ana = register("Ana")
+
+    response = client.post("/tasks", json={"title": "Linha 1\nLinha 2"}, headers=ana.headers)
+
+    assert response.status_code == 201
+    assert response.json()["title"] == "Linha 1 Linha 2"
+
+
 def test_create_task_with_unknown_assignee_returns_422(client, register):
     ana = register("Ana")
 

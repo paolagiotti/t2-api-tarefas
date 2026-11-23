@@ -44,6 +44,10 @@ class TaskRepository(ABC):
     @abstractmethod
     def find(self, filters: TaskFilters) -> list[Task]: ...
 
+    @abstractmethod
+    def list_open_assigned_to(self, user_id: UUID) -> list[Task]:
+        """Tarefas ainda não concluídas sob a responsabilidade do usuário."""
+
 
 class CommentRepository(ABC):
     @abstractmethod

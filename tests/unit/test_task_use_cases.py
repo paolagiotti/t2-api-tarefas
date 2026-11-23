@@ -146,6 +146,17 @@ def test_creator_deletes_task(uow, make_user, create_task):
     assert uow.tasks.get(task.id) is None
 
 
+def test_team_takes_over_tasks_of_a_removed_creator(uow, make_user, create_task, update_task):
+    ana, bruno = make_user(name="Ana"), make_user(name="Bruno")
+    task = create_task.execute(ana, NewTask(title="Da Ana", assigned_to=ana.id))
+    DeleteUser(uow).execute(ana, ana.id)
+
+    update_task.execute(bruno, task.id, changes(assigned_to=bruno.id))
+    DeleteTask(uow).execute(bruno, task.id)
+
+    assert uow.tasks.get(task.id) is None
+
+
 def test_assignee_cannot_delete_task(uow, make_user, create_task):
     ana, bruno = make_user(name="Ana"), make_user(name="Bruno")
     task = create_task.execute(ana, NewTask(title="Importante", assigned_to=bruno.id))

@@ -7,12 +7,19 @@ from pydantic.alias_generators import to_camel
 
 from app.api.schemas.base import ApiSchema
 from app.application.dto import NewTask, TaskChanges
-from app.domain.entities import TaskPriority, TaskStatus
+from app.domain.entities import (
+    TASK_DESCRIPTION_MAX_LENGTH,
+    TASK_TITLE_MAX_LENGTH,
+    TaskPriority,
+    TaskStatus,
+)
 
 
 class TaskCreateRequest(ApiSchema):
-    title: str = Field(min_length=1, max_length=200, examples=["Gravar o vídeo de demonstração"])
-    description: str | None = Field(default=None, max_length=5000)
+    title: str = Field(
+        min_length=1, max_length=TASK_TITLE_MAX_LENGTH, examples=["Gravar o vídeo de demonstração"]
+    )
+    description: str | None = Field(default=None, max_length=TASK_DESCRIPTION_MAX_LENGTH)
     priority: TaskPriority = TaskPriority.MEDIUM
     due_date: date | None = Field(default=None, examples=["2026-11-30"])
     assigned_to: UUID | None = Field(default=None, description="Usuário responsável")
@@ -33,8 +40,8 @@ class TaskUpdateRequest(ApiSchema):
     Envie `null` em `description`, `dueDate` ou `assignedTo` para limpar o valor.
     """
 
-    title: str | None = Field(default=None, min_length=1, max_length=200)
-    description: str | None = Field(default=None, max_length=5000)
+    title: str | None = Field(default=None, min_length=1, max_length=TASK_TITLE_MAX_LENGTH)
+    description: str | None = Field(default=None, max_length=TASK_DESCRIPTION_MAX_LENGTH)
     status: TaskStatus | None = None
     priority: TaskPriority | None = None
     due_date: date | None = None

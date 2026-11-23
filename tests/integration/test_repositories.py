@@ -134,6 +134,18 @@ def test_find_filters_by_assignee_and_paginates_newest_first(uow):
     assert [task.title for task in page] == ["T3", "T2"]
 
 
+def test_list_open_assigned_to_ignores_done_tasks(uow):
+    ana, bruno = add_users(uow, 2)
+    pending = Task(title="Pendente", created_by=ana.id, assigned_to=bruno.id)
+    done = Task(title="Concluída", created_by=ana.id, assigned_to=bruno.id)
+    done.change_status(TaskStatus.DONE)
+    for task in (pending, done, Task(title="Sem responsável", created_by=ana.id)):
+        uow.tasks.add(task)
+    uow.commit()
+
+    assert [task.title for task in uow.tasks.list_open_assigned_to(bruno.id)] == ["Pendente"]
+
+
 def test_revoked_tokens_expire(uow):
     now = utc_now()
     uow.revoked_tokens.add("ativo", now + timedelta(hours=1))

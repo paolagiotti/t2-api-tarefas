@@ -7,7 +7,9 @@ import jwt
 from app.application.dto import IssuedToken, TokenClaims
 from app.application.ports import PasswordHasher, TokenService
 from app.domain.entities import utc_now
-from app.domain.exceptions import AuthenticationError
+from app.domain.exceptions import AuthenticationError, BusinessRuleViolation
+
+BCRYPT_MAX_BYTES = 72
 
 
 class BcryptPasswordHasher(PasswordHasher):
@@ -15,7 +17,11 @@ class BcryptPasswordHasher(PasswordHasher):
         self._rounds = rounds
 
     def hash(self, password: str) -> str:
-        return bcrypt.hashpw(password.encode(), bcrypt.gensalt(self._rounds)).decode()
+        encoded = password.encode()
+        if len(encoded) > BCRYPT_MAX_BYTES:
+            # O bcrypt só considera os primeiros 72 bytes; recusar é mais seguro que truncar.
+            raise BusinessRuleViolation(f"A senha deve ter no máximo {BCRYPT_MAX_BYTES} bytes")
+        return bcrypt.hashpw(encoded, bcrypt.gensalt(self._rounds)).decode()
 
     def verify(self, password: str, password_hash: str) -> bool:
         try:

@@ -94,12 +94,66 @@ def test_user_cannot_update_another_user(client, register):
 def test_password_change_takes_effect_on_next_login(client, register):
     ana = register("Ana")
 
-    client.put(f"/users/{ana.id}", json={"password": "nova-senha-456"}, headers=ana.headers)
+    client.put(
+        f"/users/{ana.id}",
+        json={"password": "nova-senha-456", "currentPassword": PASSWORD},
+        headers=ana.headers,
+    )
 
     old = client.post("/auth/login", json={"email": ana.email, "password": PASSWORD})
     new = client.post("/auth/login", json={"email": ana.email, "password": "nova-senha-456"})
     assert old.status_code == 401
     assert new.status_code == 200
+
+
+def test_changing_email_requires_the_current_password(client, register):
+    ana = register("Ana")
+    url = f"/users/{ana.id}"
+
+    missing = client.put(url, json={"email": "nova@example.com"}, headers=ana.headers)
+    wrong = client.put(
+        url, json={"email": "nova@example.com", "currentPassword": "errada"}, headers=ana.headers
+    )
+    right = client.put(
+        url, json={"email": "nova@example.com", "currentPassword": PASSWORD}, headers=ana.headers
+    )
+
+    assert missing.status_code == 422
+    assert wrong.status_code == 403
+    assert right.status_code == 200
+    assert right.json()["email"] == "nova@example.com"
+
+
+def test_update_without_changes_keeps_updated_at(client, register):
+    ana = register("Ana")
+    before = client.get(f"/users/{ana.id}", headers=ana.headers).json()
+
+    response = client.put(f"/users/{ana.id}", json={"name": "Ana"}, headers=ana.headers)
+
+    assert response.status_code == 200
+    assert response.json()["updatedAt"] == before["updatedAt"]
+
+
+def test_deleting_user_unassigns_their_open_tasks(client, register):
+    ana, bruno = register("Ana"), register("Bruno")
+    task = client.post(
+        "/tasks", json={"title": "Revisar", "assignedTo": bruno.id}, headers=ana.headers
+    ).json()
+
+    client.delete(f"/users/{bruno.id}", headers=bruno.headers)
+
+    assert client.get(f"/tasks/{task['id']}", headers=ana.headers).json()["assignedTo"] is None
+
+
+def test_tasks_of_a_removed_creator_can_be_deleted_by_the_team(client, register):
+    ana, bruno = register("Ana"), register("Bruno")
+    task = client.post(
+        "/tasks", json={"title": "Da Ana", "assignedTo": ana.id}, headers=ana.headers
+    ).json()
+
+    client.delete(f"/users/{ana.id}", headers=ana.headers)
+
+    assert client.delete(f"/tasks/{task['id']}", headers=bruno.headers).status_code == 204
 
 
 def test_delete_user_is_soft_delete(client, register):

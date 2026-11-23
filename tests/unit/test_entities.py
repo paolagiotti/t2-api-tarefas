@@ -2,7 +2,7 @@ from uuid import uuid4
 
 import pytest
 
-from app.domain.entities import Task, TaskPriority, TaskStatus, User, normalize_email
+from app.domain.entities import Comment, Task, TaskPriority, TaskStatus, User, normalize_email
 from app.domain.exceptions import BusinessRuleViolation
 
 
@@ -30,10 +30,39 @@ def test_task_title_is_trimmed():
     assert make_task(title="  Revisar slides  ").title == "Revisar slides"
 
 
-@pytest.mark.parametrize("title", ["", "   ", "x" * 201])
+@pytest.mark.parametrize("title", ["", " \n\t ", "x" * 201, "Sino\x07", "Nulo\x00"])
 def test_task_rejects_invalid_title(title):
     with pytest.raises(BusinessRuleViolation):
         make_task(title=title)
+
+
+def test_title_whitespace_is_normalized_to_a_single_line():
+    task = make_task(title="  Linha 1\nLinha 2\t\u00a0fim  ")
+
+    assert task.title == "Linha 1 Linha 2 fim"
+
+
+@pytest.mark.parametrize(
+    "title",
+    ["Equipe \U0001f469\u200d\U0001f4bb", "\u0645\u06cc\u200c\u062e\u0648\u0627\u0647\u0645"],
+)
+def test_title_keeps_valid_unicode(title):
+    assert make_task(title=title).title == title
+
+
+def test_blank_description_is_stored_as_none():
+    assert make_task(description="   ").description is None
+    assert make_task(description=" Detalhes ").description == "Detalhes"
+
+
+def test_description_has_a_maximum_length():
+    with pytest.raises(BusinessRuleViolation):
+        make_task(description="x" * 5001)
+
+
+def test_comment_cannot_be_blank():
+    with pytest.raises(BusinessRuleViolation):
+        Comment(task_id=uuid4(), author_id=uuid4(), content=" \n ")
 
 
 def test_rename_validates_title():
@@ -94,9 +123,14 @@ def test_user_email_is_normalized():
     assert normalize_email("X@Y.com") == "x@y.com"
 
 
-def test_user_rejects_blank_name():
+@pytest.mark.parametrize("name", ["  ", "Ana\x1b[31m"])
+def test_user_rejects_invalid_name(name):
     with pytest.raises(BusinessRuleViolation):
-        make_user(name="  ")
+        make_user(name=name)
+
+
+def test_line_breaks_in_name_cannot_inject_email_headers():
+    assert make_user(name="Ana\r\nBcc: alguem@example.com").name == "Ana Bcc: alguem@example.com"
 
 
 def test_deactivate_marks_user_as_inactive_once():

@@ -1,3 +1,4 @@
+import unicodedata
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from enum import StrEnum
@@ -7,6 +8,7 @@ from app.domain.exceptions import BusinessRuleViolation
 
 USER_NAME_MAX_LENGTH = 120
 TASK_TITLE_MAX_LENGTH = 200
+TASK_DESCRIPTION_MAX_LENGTH = 5000
 COMMENT_MAX_LENGTH = 2000
 
 
@@ -41,15 +43,18 @@ class User:
     deleted_at: datetime | None = None
 
     def __post_init__(self) -> None:
-        self.name = _required_text(self.name, "nome do usuário", USER_NAME_MAX_LENGTH)
-        self.email = normalize_email(self.email)
+        self.rename(self.name)
+        self.change_email(self.email)
 
     @property
     def is_active(self) -> bool:
         return self.deleted_at is None
 
     def rename(self, name: str) -> None:
-        self.name = _required_text(name, "nome do usuário", USER_NAME_MAX_LENGTH)
+        self.name = _single_line_text(name, "o nome do usuário", USER_NAME_MAX_LENGTH)
+
+    def change_email(self, email: str) -> None:
+        self.email = normalize_email(email)
 
     def touch(self) -> None:
         self.updated_at = utc_now()
@@ -76,10 +81,17 @@ class Task:
     completed_at: datetime | None = None
 
     def __post_init__(self) -> None:
-        self.title = _required_text(self.title, "título da tarefa", TASK_TITLE_MAX_LENGTH)
+        self.rename(self.title)
+        self.describe(self.description)
 
     def rename(self, title: str) -> None:
-        self.title = _required_text(title, "título da tarefa", TASK_TITLE_MAX_LENGTH)
+        self.title = _single_line_text(title, "o título da tarefa", TASK_TITLE_MAX_LENGTH)
+
+    def describe(self, description: str | None) -> None:
+        """Texto livre; vazio equivale a não ter descrição."""
+        text = (description or "").strip()
+        _check_length(text, "a descrição da tarefa", TASK_DESCRIPTION_MAX_LENGTH)
+        self.description = text or None
 
     def change_status(self, status: TaskStatus) -> None:
         if status == self.status:
@@ -109,16 +121,33 @@ class Comment:
     created_at: datetime = field(default_factory=utc_now)
 
     def __post_init__(self) -> None:
-        self.content = _required_text(self.content, "comentário", COMMENT_MAX_LENGTH)
+        self.content = self.content.strip()
+        if not self.content:
+            raise BusinessRuleViolation("O comentário não pode ser vazio")
+        _check_length(self.content, "o comentário", COMMENT_MAX_LENGTH)
 
     def can_be_deleted_by(self, user_id: UUID) -> bool:
         return user_id == self.author_id
 
 
-def _required_text(value: str, label: str, max_length: int) -> str:
-    text = value.strip()
+def _single_line_text(value: str, label: str, max_length: int) -> str:
+    """Normaliza textos curtos, como nomes e títulos, que também vão para o assunto dos e-mails:
+    quebras de linha, tabulações e espaços repetidos viram um único espaço."""
+    text = " ".join(value.split())
     if not text:
-        raise BusinessRuleViolation(f"O {label} é obrigatório")
-    if len(text) > max_length:
-        raise BusinessRuleViolation(f"O {label} deve ter no máximo {max_length} caracteres")
+        raise BusinessRuleViolation(f"{_capitalized(label)} é obrigatório")
+    if any(unicodedata.category(char) == "Cc" for char in text):
+        raise BusinessRuleViolation(f"{_capitalized(label)} não pode conter caracteres de controle")
+    _check_length(text, label, max_length)
     return text
+
+
+def _check_length(text: str, label: str, max_length: int) -> None:
+    if len(text) > max_length:
+        raise BusinessRuleViolation(
+            f"{_capitalized(label)} deve ter no máximo {max_length} caracteres"
+        )
+
+
+def _capitalized(label: str) -> str:
+    return label[:1].upper() + label[1:]
